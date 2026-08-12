@@ -55,11 +55,23 @@ async def pump_stdin(shell, loop):
         await shell.send_bytes(chunk)
 
 
-async def pump_stdout(shell):
-    """Forward remote PTY output frames to local stdout."""
+async def pump_stdout(shell, diagnostics):
+    """Forward remote PTY output frames to local stdout.
+
+    Only ShellChannel.STDOUT is written live to the terminal. Per the
+    protocol docs (bedrock_agentcore.runtime.shell.protocol), STDERR on this
+    channel is AgentCore *platform* diagnostics, not the remote process's
+    stderr -- an out-of-band side channel, not part of the rendered stream.
+    herdr's TUI draws via absolute-cursor-position ANSI sequences; splicing
+    unrelated diagnostic bytes into that stream mid-escape-sequence corrupts
+    the renderer (garbled box-drawing/text). Diagnostics are buffered instead
+    and flushed to stderr after the session ends, once raw mode is restored.
+    """
     async for frame in shell:
-        if frame.channel in (ShellChannel.STDOUT, ShellChannel.STDERR):
+        if frame.channel == ShellChannel.STDOUT:
             os.write(sys.stdout.fileno(), frame.payload)
+        elif frame.channel == ShellChannel.STDERR:
+            diagnostics.append(frame.payload)
 
 
 async def watch_resize(shell):
@@ -76,6 +88,7 @@ async def watch_resize(shell):
 
 async def run_session(client, runtime_arn, session_id, shell_id):
     print(f"Connecting (session_id={session_id}, shell_id={shell_id})...", file=sys.stderr)
+    diagnostics = []
     async with client.open_shell(runtime_arn, session_id=session_id, shell_id=shell_id) as shell:
         print(
             f"Connected. shell_id={shell.shell_id} reconnected={shell.reconnected}",
@@ -85,7 +98,7 @@ async def run_session(client, runtime_arn, session_id, shell_id):
         await shell.resize(size.columns, size.lines)
 
         loop = asyncio.get_running_loop()
-        stdout_task = asyncio.ensure_future(pump_stdout(shell))
+        stdout_task = asyncio.ensure_future(pump_stdout(shell, diagnostics))
         stdin_task = asyncio.ensure_future(pump_stdin(shell, loop))
         resize_task = asyncio.ensure_future(watch_resize(shell))
 
@@ -104,6 +117,7 @@ async def run_session(client, runtime_arn, session_id, shell_id):
                     await task
                 except (asyncio.CancelledError, Exception):
                     pass
+    return diagnostics
 
 
 def main():
@@ -146,12 +160,17 @@ def main():
 
     fd = sys.stdin.fileno()
     old_settings = termios.tcgetattr(fd)
+    diagnostics = []
     try:
         tty.setraw(fd)
-        asyncio.run(run_session(client, runtime_arn, session_id, shell_id))
+        diagnostics = asyncio.run(run_session(client, runtime_arn, session_id, shell_id))
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
         print("\nDetached. Rerun with the same --session to reattach.", file=sys.stderr)
+        for payload in diagnostics:
+            sys.stderr.buffer.write(payload)
+        if diagnostics:
+            sys.stderr.flush()
 
     return 0
 
