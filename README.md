@@ -26,6 +26,15 @@ Creates: 1 ECR repo, 1 IAM role, 1 AgentCore runtime (PUBLIC network mode,
 no VPC/EFS/S3-Files). Should be a few cents for the duration of testing.
 Nothing shared/production is touched. `cleanup.py` tears it down after.
 
-**Not run yet** — building the Docker image and running `deploy.py` will
-create real billable AWS resources under whatever profile/account is active.
-Confirm before executing the deploy step.
+## Validation status
+
+**Executed end-to-end on 2026-08-12** (account 575108946562, us-east-1,
+profile `herdr-agentcore-deploy`). Deployed, connected, validated, and torn
+down. 8/8 executed hypotheses from `test_plan.md` PASS (hypothesis 5 — 8h
+maxLifetime teardown — intentionally not executed; documented as an
+assumption only). See `smoke-test/RESULTS.md` for the full pass/fail
+breakdown and `smoke-test/connect_results.json` for raw output.
+
+Cleanup (`cleanup.py`) ran and was independently re-verified via fresh AWS
+CLI calls (runtime/IAM role/ECR repo all confirmed gone) — no live resources
+left behind after this run.

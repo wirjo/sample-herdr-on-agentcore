@@ -1,0 +1,34 @@
+{
+  "h1_connect": {
+    "pass": true,
+    "shell_id": "herdr-smoke-shell-1"
+  },
+  "h3_env_gotcha_handled": {
+    "pass": true,
+    "output": "echo ENVCHECK_START; echo HOME=$HOME; which herdr; echo ENVCHECK_END\r\n\u001b[?2004h\u001b]0;agent@localhost: /\u0007\u001b[01;32magent@localhost\u001b[00m:\u001b[01;34m/\u001b[00m$ echo ENVCHECK_START; echo HOME=$HOME; which herdr; echo ENVCHECK_END\r\n\u001b[?2004l\rENVCHECK_START\r\nHOME=/home/agent\r\n/usr/local/bin/herdr\r\nENVCHECK_END\r\n"
+  },
+  "h2_herdr_attaches_existing_session": {
+    "pass": true,
+    "output": "\u001b[?2004h\u001b]0;agent@localhost: /\u0007\u001b[01;32magent@localhost\u001b[00m:\u001b[01;34m/\u001b[00m$ herdr session list --json 2>&1; echo HERDR_LIST_DONE\r\n\u001b[?2004l\r{\"sessions\":[{\"default\":true,\"name\":\"default\",\"running\":true,\"session_dir\":\"/home/agent/.config/herdr\",\"socket_path\":\"/home/agent/.config/herdr/herdr.sock\"}]}\r\nHERDR_LIST_DONE\r\n"
+  },
+  "h2b_real_tty_device": {
+    "pass": true,
+    "output": "\u001b[?2004h\u001b]0;agent@localhost: /\u0007\u001b[01;32magent@localhost\u001b[00m:\u001b[01;34m/\u001b[00m$ test -t 0 && test -t 1 && echo REAL_TTY_CONFIRMED || echo REAL_TTY_FAILED; ls -la /proc/self/fd/0 2>&1; echo TTYCHECK_DONE\r\n\u001b[?2004l\rREAL_TTY_CONFIRMED\r\nlrwx------ 1 agent agent 64 Aug 12 04:02 \u001b[0m\u001b[40;31;01m/proc/self/fd/0\u001b[0m -> \u001b[40;31;01m/dev/pts/0\u001b[0m\r\nTTYCHECK_DONE\r\n"
+  },
+  "h4_setup_pane_create": {
+    "pass": true,
+    "output": "\u001b[?2004h\u001b]0;agent@localhost: /\u0007\u001b[01;32magent@localhost\u001b[00m:\u001b[01;34m/\u001b[00m$ herdr workspace create 2>&1; echo WSCREATE_DONE\r\n\u001b[?2004l\r{\"id\":\"cli:workspace:create\",\"result\":{\"root_pane\":{\"agent_status\":\"unknown\",\"cwd\":\"/home/agent\",\"focused\":true,\"foreground_cwd\":\"/home/agent\",\"pane_id\":\"w1:p1\",\"revision\":0,\"scroll\":{\"max_offset_from_bottom\":0,\"offset_from_bottom\":0,\"viewport_rows\":24},\"tab_id\":\"w1:t1\",\"terminal_id\":\"term_658d1a929cc441\",\"workspace_id\":\"w1\"},\"tab\":{\"agent_status\":\"unknown\",\"focused\":true,\"label\":\"1\",\"number\":1,\"pane_count\":1,\"tab_id\":\"w1:t1\",\"workspace_id\":\"w1\"},\"type\":\"workspace_created\",\"workspace\":{\"active_tab_id\":\"w1:t1\",\"agent_status\":\"unknown\",\"focused\":true,\"label\":\"~\",\"number\":1,\"pane_count\":1,\"tab_count\":1,\"workspace_id\":\"w1\"}}}\r\nWSCREATE_DONE\r\n"
+  },
+  "h4_reconnect": {
+    "pass": true,
+    "shell_id": "herdr-smoke-shell-1"
+  },
+  "h4_state_preserved_across_reconnect": {
+    "pass": true,
+    "output": "echo ENVCHECK_START; echo HOME=$HOME; which herdr; echo ENVCHECK_END\r\n\u001b[?2004h\u001b]0;agent@localhost: /\u0007\u001b[01;32magent@localhost\u001b[00m:\u001b[01;34m/\u001b[00m$ echo ENVCHECK_START; echo HOME=$HOME; which herdr; echo ENVCHECK_END\r\n\u001b[?2004l\rENVCHECK_START\r\nHOME=/home/agent\r\n/usr/local/bin/herdr\r\nENVCHECK_END\r\n\u001b[?2004h\u001b]0;agent@localhost: /\u0007\u001b[01;32magent@localhost\u001b[00m:\u001b[01;34m/\u001b[00m$ herdr session list --json 2>&1; echo HERDR_LIST_DONE\r\n\u001b[?2004l\r{\"sessions\":[{\"default\":true,\"name\":\"default\",\"running\":true,\"session_dir\":\"/home/agent/.config/herdr\",\"socket_path\":\"/home/agent/.config/herdr/herdr.sock\"}]}\r\nHERDR_LIST_DONE\r\n\u001b[?2004h\u001b]0;agent@localhost: /\u0007\u001b[01;32magent@localhost\u001b[00m:\u001b[01;34m/\u001b[00m$ test -t 0 && test -t 1 && echo REAL_TTY_CONFIRMED || echo REAL_TTY_FAILED; ls -la /proc/self/fd/0 2>&1; echo TTYCHECK_DONE\r\n\u001b[?2004l\rREAL_TTY_CONFIRMED\r\nlrwx------ 1 agent agent 64 Aug 12 04:02 \u001b[0m\u001b[40;31;01m/proc/self/fd/0\u001b[0m -> \u001b[40;31;01m/dev/pts/0\u001b[0m\r\nTTYCHECK_DONE\r\n\u001b[?2004h\u001b]0;agent@localhost: /\u0007\u001b[01;32magent@localhost\u001b[00m:\u001b[01;34m/\u001b[00m$ herdr workspace create 2>&1; echo WSCREATE_DONE\r\n\u001b[?2004l\r{\"id\":\"cli:workspace:create\",\"result\":{\"root_pane\":{\"agent_status\":\"unknown\",\"cwd\":\"/home/agent\",\"focused\":true,\"foreground_cwd\":\"/home/agent\",\"pane_id\":\"w1:p1\",\"revision\":0,\"scroll\":{\"max_offset_from_bottom\":0,\"offset_from_bottom\":0,\"viewport_rows\":24},\"tab_id\":\"w1:t1\",\"terminal_id\":\"term_658d1a929cc441\",\"workspace_id\":\"w1\"},\"tab\":{\"agent_status\":\"unknown\",\"focused\":true,\"label\":\"1\",\"number\":1,\"pane_count\":1,\"tab_id\":\"w1:t1\",\"workspace_id\":\"w1\"},\"type\":\"workspace_created\",\"workspace\":{\"active_tab_id\":\"w1:t1\",\"agent_status\":\"unknown\",\"focused\":true,\"label\":\"~\",\"number\":1,\"pane_count\":1,\"tab_count\":1,\"workspace_id\":\"w1\"}}}\r\nWSCREATE_DONE\r\n\u001b[?2004h\u001b]0;agent@localhost: /\u0007\u001b[01;32magent@localhost\u001b[00m:\u001b[01;34m/\u001b[00m$ herdr pane list 2>&1; echo PANECHECK_END\r\n\u001b[?2004l\r{\"id\":\"cli:pane:list\",\"result\":{\"panes\":[{\"agent_status\":\"unknown\",\"cwd\":\"/home/agent\",\"focused\":true,\"foreground_cwd\":\"/home/agent\",\"pane_id\":\"w1:p1\",\"revision\":0,\"scroll\":{\"max_offset_from_bottom\":0,\"offset_from_bottom\":0,\"viewport_rows\":23},\"tab_id\":\"w1:t1\",\"terminal_id\":\"term_658d1a929cc441\",\"workspace_id\":\"w1\"}],\"type\":\"pane_list\"}}\r\nPANECHECK_END\r\n"
+  },
+  "h4_herdr_survives_reconnect": {
+    "pass": true,
+    "output": "\u001b[?2004h\u001b]0;agent@localhost: /\u0007\u001b[01;32magent@localhost\u001b[00m:\u001b[01;34m/\u001b[00m$ herdr session list --json 2>&1; echo HERDR_LIST2_DONE\r\n\u001b[?2004l\r{\"sessions\":[{\"default\":true,\"name\":\"default\",\"running\":true,\"session_dir\":\"/home/agent/.config/herdr\",\"socket_path\":\"/home/agent/.config/herdr/herdr.sock\"}]}\r\nHERDR_LIST2_DONE\r\n"
+  }
+}
