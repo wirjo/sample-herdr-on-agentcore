@@ -2,11 +2,15 @@
 """Deploy herdr to AWS Bedrock AgentCore Runtime.
 
 Creates (if needed): ECR repo, pushes local image, IAM execution role,
-AgentCore runtime (PUBLIC network mode, no VPC/EFS/S3-Files).
+AgentCore runtime (PUBLIC network mode). Optionally attaches AgentCore
+managed session storage (Preview) so herdr's session/pane state survives
+stop/resume -- see --session-storage below and:
+https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-filesystem-configurations.html
 
 Usage:
     python3 deploy.py                                   # uses default credential chain
     python3 deploy.py --profile myprofile --region us-west-2
+    python3 deploy.py --session-storage                 # persist herdr state across stop/resume
 """
 import argparse
 import base64
@@ -23,6 +27,7 @@ DEFAULT_REPO_NAME = "herdr-agentcore-sample"
 DEFAULT_LOCAL_IMAGE = "herdr-agentcore-sample:latest"
 DEFAULT_RUNTIME_NAME = "herdr_agentcore_sample"
 DEFAULT_ROLE_NAME = "herdr-agentcore-sample-execution-role"
+DEFAULT_SESSION_STORAGE_MOUNT_PATH = "/mnt/workspace"
 
 
 def parse_args():
@@ -35,6 +40,21 @@ def parse_args():
     parser.add_argument("--role-name", default=DEFAULT_ROLE_NAME, help="IAM execution role name")
     parser.add_argument(
         "--state-file", default="deploy_state.json", help="Where to write deploy state (default: deploy_state.json)"
+    )
+    parser.add_argument(
+        "--session-storage",
+        action="store_true",
+        help=(
+            "Attach AgentCore managed session storage (Preview) so herdr's session/pane "
+            "state and files under the mount path survive stop/resume (up to 14 days idle, "
+            "resets on runtime version updates). No VPC required. See: "
+            "https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-filesystem-configurations.html"
+        ),
+    )
+    parser.add_argument(
+        "--session-storage-mount-path",
+        default=DEFAULT_SESSION_STORAGE_MOUNT_PATH,
+        help=f"Mount path for managed session storage (default: {DEFAULT_SESSION_STORAGE_MOUNT_PATH})",
     )
     return parser.parse_args()
 
@@ -167,7 +187,7 @@ def ensure_execution_role(iam, account_id, region, role_name, repo_name):
     return role_arn
 
 
-def create_runtime(agentcore_control, runtime_name, image_uri, role_arn):
+def create_runtime(agentcore_control, runtime_name, image_uri, role_arn, session_storage_mount_path=None):
     try:
         existing = agentcore_control.list_agent_runtimes()
         for rt in existing.get("agentRuntimes", []):
@@ -178,12 +198,24 @@ def create_runtime(agentcore_control, runtime_name, image_uri, role_arn):
     except ClientError as e:
         print(f"list_agent_runtimes check failed (continuing): {e}")
 
-    resp = agentcore_control.create_agent_runtime(
+    create_kwargs = dict(
         agentRuntimeName=runtime_name,
         agentRuntimeArtifact={"containerConfiguration": {"containerUri": image_uri}},
         roleArn=role_arn,
         networkConfiguration={"networkMode": "PUBLIC"},
     )
+    if session_storage_mount_path:
+        # Managed session storage (Preview): service-managed per-session storage
+        # that survives stop/resume (14-day idle expiry, resets on runtime version
+        # updates). No VPC required -- unlike S3 Files/EFS access points, which
+        # need networkMode=VPC plus mount-target security groups. See:
+        # https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-filesystem-configurations.html
+        create_kwargs["filesystemConfigurations"] = [
+            {"sessionStorage": {"mountPath": session_storage_mount_path}}
+        ]
+        print(f"Attaching managed session storage at {session_storage_mount_path}")
+
+    resp = agentcore_control.create_agent_runtime(**create_kwargs)
     arn = resp["agentRuntimeArn"]
     print(f"Created AgentCore runtime: {arn}")
     print(f"Status: {resp.get('status')}")
@@ -217,7 +249,8 @@ def main():
     repo_uri = ensure_ecr_repo(ecr, args.repo_name)
     image_uri = push_image(ecr, repo_uri, args.local_image)
     role_arn = ensure_execution_role(iam, account_id, args.region, args.role_name, args.repo_name)
-    arn = create_runtime(agentcore_control, args.runtime_name, image_uri, role_arn)
+    session_storage_mount_path = args.session_storage_mount_path if args.session_storage else None
+    arn = create_runtime(agentcore_control, args.runtime_name, image_uri, role_arn, session_storage_mount_path)
     wait_for_ready(agentcore_control, arn)
 
     state = {
@@ -226,13 +259,16 @@ def main():
         "repoUri": repo_uri,
         "imageUri": image_uri,
         "region": args.region,
+        "sessionStorageMountPath": session_storage_mount_path,
     }
     with open(args.state_file, "w") as f:
         json.dump(state, f, indent=2)
 
-    print("\n=== DEPLOY COMPLETE ===")
+    print()
+    print("=== DEPLOY COMPLETE ===")
     print(json.dumps(state, indent=2))
-    print(f"\nNext: python3 attach.py")
+    print()
+    print("Next: python3 attach.py")
     return 0
 
 

@@ -34,10 +34,19 @@ Compared to "stand up a box and SSH into it":
   no separate SSH-access-log pipeline to build.
 
 "Persistence" here means session/pane state survives detach + reconnect
-*within* the microVM's life — not indefinite storage. AgentCore's 8h
-`maxLifetime` still applies, and this sample runs no S3 Files/EFS mount, so
-state does not survive the microVM being torn down. See [Validation](#validation)
-for what was and wasn't actually tested.
+*within* the microVM's life by default. AgentCore's 8h `maxLifetime` still
+applies, and a plain deploy runs no persistent filesystem, so state does not
+survive the microVM being torn down or its 8h lifetime expiring.
+
+AgentCore Runtime also supports [persistent file systems](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-filesystem-configurations.html),
+including **managed session storage (Preview)** — a service-managed mount that
+survives stop/resume with no VPC required (14-day idle expiry, resets on
+runtime version updates). `deploy.py --session-storage` attaches this and
+`entrypoint.sh` symlinks herdr's own state directory (`~/.config/herdr`) onto
+the mount, so herdr's session/pane state survives a real stop + resume, not
+just a detach/reconnect within one running microVM. See
+[Validation](#validation) for how this was actually tested (a real
+`StopRuntimeSession` call, not just staying connected).
 
 ## How this maps to herdr's remote-access model
 
@@ -95,10 +104,14 @@ docker build -t herdr-agentcore-sample:latest .
 ```
 python3 deploy.py                                    # uses your default credential chain
 python3 deploy.py --profile myprofile --region us-west-2   # or override explicitly
+python3 deploy.py --session-storage                  # + persist herdr state across stop/resume
 ```
 Creates an ECR repo, pushes the image, creates an IAM execution role and an
 AgentCore runtime (PUBLIC network mode), and writes `deploy_state.json` with
-the resulting ARNs for the next steps to read.
+the resulting ARNs for the next steps to read. `--session-storage` attaches
+AgentCore's managed session storage (Preview) at `/mnt/workspace` — see
+[Why AgentCore Runtime as a remote target](#why-agentcore-runtime-as-a-remote-target)
+for what that does and doesn't guarantee.
 
 **3. Attach and run herdr:**
 ```
@@ -130,9 +143,11 @@ left billable resources running for hours undetected).
 ## Cost / blast radius
 
 Creates: 1 ECR repository, 1 IAM role, 1 AgentCore runtime (PUBLIC network
-mode — no VPC, no EFS, no S3 Files). Cost is cents-scale for the duration you
-run it. Nothing shared or production is touched; everything is scoped to
-names this sample creates and `cleanup.py` removes.
+mode — no VPC). Cost is cents-scale for the duration you run it. With
+`--session-storage`, managed session storage (Preview) adds storage cost for
+whatever herdr's state directory holds; no VPC, EFS, or S3 Files resources
+are created either way. Nothing shared or production is touched; everything
+is scoped to names this sample creates and `cleanup.py` removes.
 
 ## Validation
 
@@ -140,6 +155,14 @@ This was validated end-to-end on a real AWS account: deploy → attach → run
 `herdr` → create a pane → detach → reattach with the same session → confirm
 the pane persisted → cleanup → independently re-verified via fresh AWS CLI
 calls that the runtime, IAM role, and ECR repo were actually gone.
+
+Managed session storage (`--session-storage`) was separately validated
+against a real stop/resume cycle, not just a live reconnect: wrote a marker
+file under the mounted, symlinked herdr state directory, called the data-plane
+`StopRuntimeSession` API directly (the same API AWS's own docs use to test
+this), then reconnected with the same session ID and confirmed the marker
+file was still present — proving the state survived an actual stop, not just
+an open WebSocket staying alive on one microVM.
 
 The original smoke test that proved out the underlying approach (server
 survives as PID1's child, PTY shells don't inherit Dockerfile `ENV`, detach/

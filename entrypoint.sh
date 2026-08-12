@@ -8,9 +8,39 @@
 # it up.
 set -euo pipefail
 
-sudo_or_direct() {
-  if [ "$(id -u)" = "0" ]; then "$@"; else "$@"; fi
-}
+SESSION_STORAGE_MOUNT="${HERDR_SESSION_STORAGE_MOUNT:-/mnt/workspace}"
+HERDR_CONFIG_DIR="${HOME}/.config/herdr"
+
+# If deploy.py was run with --session-storage, AgentCore mounts managed
+# session storage at SESSION_STORAGE_MOUNT before this script runs (the
+# Dockerfile does not create that path itself, so its presence here means
+# AgentCore attached it -- not that it happened to already exist in the
+# image). herdr keeps its session/pane state under ~/.config/herdr (see
+# `herdr session list --json` -> session_dir); symlinking that directory
+# onto the mounted path is what makes herdr's own persistence survive a
+# stop/resume cycle instead of just resetting with the microVM's ephemeral
+# root filesystem.
+#
+# See: https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-filesystem-configurations.html
+if [ -d "${SESSION_STORAGE_MOUNT}" ]; then
+  echo "Session storage mount detected at ${SESSION_STORAGE_MOUNT}; persisting herdr state there."
+  mkdir -p "${SESSION_STORAGE_MOUNT}/herdr-config"
+  mkdir -p "$(dirname "${HERDR_CONFIG_DIR}")"
+  if [ -L "${HERDR_CONFIG_DIR}" ]; then
+    : # Already a symlink from a prior boot on the same persisted filesystem.
+  elif [ -d "${HERDR_CONFIG_DIR}" ]; then
+    # First boot with a non-empty pre-existing dir (shouldn't normally
+    # happen since the image doesn't create it, but handle it safely
+    # rather than silently discarding anything already there).
+    cp -a "${HERDR_CONFIG_DIR}/." "${SESSION_STORAGE_MOUNT}/herdr-config/" 2>/dev/null || true
+    rm -rf "${HERDR_CONFIG_DIR}"
+    ln -s "${SESSION_STORAGE_MOUNT}/herdr-config" "${HERDR_CONFIG_DIR}"
+  else
+    ln -s "${SESSION_STORAGE_MOUNT}/herdr-config" "${HERDR_CONFIG_DIR}"
+  fi
+else
+  echo "No session storage mount at ${SESSION_STORAGE_MOUNT}; herdr state is ephemeral for this run."
+fi
 
 # Persist env for PTY login shells (see gotcha above).
 cat > /tmp/herdr-env.sh <<EOF

@@ -1,0 +1,21 @@
+id = "herdr-agentcore.attach"
+name = "AgentCore Attach"
+version = "0.1.0"
+min_herdr_version = "0.7.0"
+description = "Attach to a herdr-on-AgentCore Runtime instance as a herdr pane"
+platforms = ["linux", "macos"]
+
+[[build]]
+command = ["bash", "build.sh"]
+
+[[actions]]
+id = "attach"
+title = "Attach to AgentCore Runtime"
+contexts = ["workspace"]
+command = ["bash", "attach_pane.sh"]
+
+[[panes]]
+id = "attach"
+title = "AgentCore Runtime"
+placement = "tab"
+command = ["bash", "attach_pane.sh"]
