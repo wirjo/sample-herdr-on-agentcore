@@ -15,6 +15,30 @@ Detach (Ctrl+D or `exit`), rerun `attach.py` with the same `--session`, and you
 reconnect to the same shell with your herdr session, panes, and scrollback
 still there.
 
+## Why AgentCore Runtime as a remote target
+
+Compared to "stand up a box and SSH into it":
+
+- **No box to own** — no EC2 instance, no SSH keys to generate/rotate/hand
+  out, no security groups, nothing to patch. AgentCore provisions and tears
+  down the microVM for you.
+- **IAM-native auth** — sigv4, not SSH keys. Fits whatever access
+  control/rotation/audit an org already runs on AWS, instead of a parallel
+  SSH-key system just for this.
+- **Real isolation per session** — each runtime is its own microVM. For
+  herdr specifically (agents running semi-autonomous code), that's a
+  meaningfully stronger blast-radius boundary than another pane on a shared
+  box.
+- **Pay-per-use** — no idle EC2 cost sitting between sessions.
+- **Audit trail for free** — CloudTrail/CloudWatch come with the service;
+  no separate SSH-access-log pipeline to build.
+
+"Persistence" here means session/pane state survives detach + reconnect
+*within* the microVM's life — not indefinite storage. AgentCore's 8h
+`maxLifetime` still applies, and this sample runs no S3 Files/EFS mount, so
+state does not survive the microVM being torn down. See [Validation](#validation)
+for what was and wasn't actually tested.
+
 ## How this maps to herdr's remote-access model
 
 herdr already has two ways to work with a server-hosted session — see
