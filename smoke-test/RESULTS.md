@@ -1,6 +1,6 @@
 # Smoke test results — herdr on AgentCore Runtime
 
-Run: 2026-08-12, AWS account 575108946562 (us-east-1), profile `herdr-agentcore-deploy`.
+Run: 2026-08-12, us-east-1 (personal test account).
 Runtime: `herdr_agentcore_smoke_test-bYcjfoAjLh` (PUBLIC network, no VPC/EFS/S3-Files).
 
 ## test_plan.md hypothesis results

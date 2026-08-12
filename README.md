@@ -28,9 +28,8 @@ Nothing shared/production is touched. `cleanup.py` tears it down after.
 
 ## Validation status
 
-**Executed end-to-end on 2026-08-12** (account 575108946562, us-east-1,
-profile `herdr-agentcore-deploy`). Deployed, connected, validated, and torn
-down. 8/8 executed hypotheses from `test_plan.md` PASS (hypothesis 5 — 8h
+**Executed end-to-end on 2026-08-12** (us-east-1, personal test account).
+Deployed, connected, validated, and torn down. 8/8 executed hypotheses from `test_plan.md` PASS (hypothesis 5 — 8h
 maxLifetime teardown — intentionally not executed; documented as an
 assumption only). See `smoke-test/RESULTS.md` for the full pass/fail
 breakdown and `smoke-test/connect_results.json` for raw output.
